@@ -74,6 +74,7 @@ $CompareDirs, $ListAddedRemoved, $SkipSubArchives, $LinksTarget,
 $SkipPattern);
 
 my $CmdName = get_filename($0);
+my $ScriptName = $0;
 
 my %ERROR_CODE = (
     # Unchanged verdict
@@ -748,6 +749,26 @@ sub compareFiles($$$$)
         # clean space
         unlink($Page1);
         unlink($Page2);
+    }
+    elsif(($Format eq "ARCHIVE") and $ShowDetails) {
+        $Changed = 1;
+        # In case we can't find a rate, this is a fallback to the binary comparison
+        $Rate = checkDiff($P1, $P2);
+        print "Comparing 2 jars with pkgdiff again\n";
+        my $intReportPath = getRPath("reports", $N1);
+        my $cmdline = "perl $ScriptName \"$P1\" \"$P2\" -report-path \"$intReportPath\"";
+        my $outpath = "$TMP_DIR/pkgdiff.out";
+        $DLink = $intReportPath;
+        system("$cmdline > $outpath");
+        open(my $fh, "<$outpath");
+        while (my $line = <$fh>) {
+            if ($line =~ /CHANGED \(([\d.]+)%\)/) {
+                print "Changed at $1 %\n";
+                $Rate = $1 / 100;
+            }
+        }
+        close($fh);
+        unlink($outpath);
     }
     else
     {
