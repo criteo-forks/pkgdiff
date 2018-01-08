@@ -51,6 +51,7 @@ use File::Compare;
 use Cwd qw(abs_path cwd);
 use Config;
 use Fcntl;
+use JSON;
 
 my $TOOL_VERSION = "1.7.2";
 my $ORIG_DIR = cwd();
@@ -71,7 +72,7 @@ $SizeLimit, $QuickMode, $DiffWidth, $DiffLines, $Minimal,
 $IgnoreSpaceChange, $IgnoreAllSpace, $IgnoreBlankLines, $ExtraInfo,
 $CustomTmpDir, $HideUnchanged, $TargetName, $TargetTitle, %TargetVersion,
 $CompareDirs, $ListAddedRemoved, $SkipSubArchives, $LinksTarget,
-$SkipPattern);
+$SkipPattern, $JsonReport);
 
 my $CmdName = get_filename($0);
 my $ScriptName = $0;
@@ -141,7 +142,8 @@ GetOptions("h|help!" => \$Help,
   "list-added-removed!" => \$ListAddedRemoved,
   "skip-subarchives!" => \$SkipSubArchives,
   "skip-pattern=s" => \$SkipPattern,
-  "links-target=s" => \$LinksTarget
+  "links-target=s" => \$LinksTarget,
+  "json!" => \$JsonReport
 ) or ERR_MESSAGE();
 
 my $TMP_DIR = undef;
@@ -252,6 +254,9 @@ GENERAL OPTIONS:
       Path to the report.
       Default:
         pkgdiff_reports/<pkg>/<v1>_to_<v2>/changes_report.html
+
+  -json
+      Add a report.json with the results.
 
   -details
       Try to create detailed reports.
@@ -645,6 +650,7 @@ sub compareSymbols($$)
 sub compareFiles($$$$)
 {
     my ($P1, $P2, $N1, $N2) = @_;
+    my $Json;
     if(not -f $P1
     or not -f $P2)
     {
@@ -755,8 +761,9 @@ sub compareFiles($$$$)
         # In case we can't find a rate, this is a fallback to the binary comparison
         $Rate = checkDiff($P1, $P2);
         print "Comparing 2 jars with pkgdiff again\n";
-        my $intReportPath = getRPath("reports", $N1);
+        my $intReportPath = "$REPORT_DIR/reports/$N1/index.html";
         my $cmdline = "perl $ScriptName \"$P1\" \"$P2\" -report-path \"$intReportPath\"";
+        $cmdline .= " -json" if $JsonReport;
         my $outpath = "$TMP_DIR/pkgdiff.out";
         $DLink = $intReportPath;
         system("$cmdline > $outpath");
@@ -769,6 +776,7 @@ sub compareFiles($$$$)
         }
         close($fh);
         unlink($outpath);
+        $Json = "reports/$N1/report.json" if $JsonReport;
     }
     else
     {
@@ -791,7 +799,7 @@ sub compareFiles($$$$)
         }
         $DLink=~s/\A\Q$REPORT_DIR\E\///;
         $RLink=~s/\A\Q$REPORT_DIR\E\///;
-        return (1, $DLink, $RLink, $Rate, $Adv);
+        return (1, $DLink, $RLink, $Rate, $Adv, $Json);
     }
     return (0, "", "", 0, {});
 }
@@ -1536,9 +1544,12 @@ sub detectChanges()
             $NewPath = $PackageFiles{2}{$NewName};
         }
         
-        my ($Changed, $DLink, $RLink, $Rate, $Adv) = compareFiles($Path, $NewPath, $Name, $NewName);
+        my ($Changed, $DLink, $RLink, $Rate, $Adv, $Json) = compareFiles($Path, $NewPath, $Name, $NewName);
         my %Details = %{$Adv};
-        
+        if ($Json) {
+            $Details{"Json"} = $Json;
+        }
+
         if($Changed==1 or $Changed==3)
         {
             if($NewName eq $Name)
@@ -3442,6 +3453,8 @@ sub createReport($)
     
     my $Report = $Header."\n";
     my $MainReport = get_Report_Files();
+
+    writeFile($REPORT_DIR."/report.json", encode_json(\%FileChanges)) if $JsonReport;
     
     my $Legend = "<br/><table class='summary'>
     <tr><td class='new' width='80px'>added</td><td class='passed' width='80px'>unchanged</td></tr>
