@@ -735,7 +735,7 @@ sub compareFiles($$$$)
     or $Format eq "MANPAGE"
     or $Format eq "INFODOC"
     or $Format eq "SYMLINK"
-    or $Format eq "JAVA_CLASS")
+    or ($Format eq "JAVA_CLASS" and !($P1=~/-uber/) ))
     {
         my $Page1 = showFile($P1, $Format, 1);
         my $Page2 = showFile($P2, $Format, 2);
@@ -764,6 +764,7 @@ sub compareFiles($$$$)
         my $intReportPath = "$REPORT_DIR/reports/$N1/index.html";
         my $cmdline = "perl $ScriptName \"$P1\" \"$P2\" -report-path \"$intReportPath\"";
         $cmdline .= " -json" if $JsonReport;
+        $cmdline .= " -hide-unchanged" if $HideUnchanged;
         my $outpath = "$TMP_DIR/pkgdiff.out";
         $DLink = $intReportPath;
         system("$cmdline > $outpath");
