@@ -765,6 +765,7 @@ sub compareFiles($$$$)
         my $cmdline = "perl $ScriptName \"$P1\" \"$P2\" -report-path \"$intReportPath\"";
         $cmdline .= " -json" if $JsonReport;
         $cmdline .= " -hide-unchanged" if $HideUnchanged;
+        $cmdline .= " -skip-pattern $SkipPattern" if $SkipPattern;
         my $outpath = "$TMP_DIR/pkgdiff.out";
         $DLink = $intReportPath;
         system("$cmdline > $outpath");
