@@ -735,7 +735,7 @@ sub compareFiles($$$$)
     or $Format eq "MANPAGE"
     or $Format eq "INFODOC"
     or $Format eq "SYMLINK"
-    or ($Format eq "JAVA_CLASS" and !($P1=~/-uber/) ))
+    or ($Format eq "JAVA_CLASS" and !($P1=~/-(uber|bundle)/) ))
     {
         my $Page1 = showFile($P1, $Format, 1);
         my $Page2 = showFile($P2, $Format, 2);
